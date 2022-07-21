@@ -282,6 +282,7 @@ class LoadImages:
             self.mode = "video"
             ret_val, img0 = self.cap.read()
             while not ret_val:
+                # print(self.count)
                 self.count += 1
                 self.cap.release()
                 if self.count == self.nf:  # last video

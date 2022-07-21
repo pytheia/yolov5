@@ -21,6 +21,7 @@ from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from subprocess import check_output
 from zipfile import ZipFile
+from argus.lib.visual_frontend.detector_classes import DetectorClasses
 
 import cv2
 import numpy as np
@@ -937,7 +938,8 @@ def non_max_suppression(
     # min_wh = 2  # (pixels) minimum box width and height
     max_wh = 7680  # (pixels) maximum box width and height
     max_nms = 30000  # maximum number of boxes into torchvision.ops.nms()
-    time_limit = 0.030 * bs  # seconds to quit after
+    # time_limit = 0.030 * bs  # seconds to quit after
+    time_limit = 1.0 * bs
     redundant = True  # require redundant detections
     multi_label &= nc > 1  # multiple labels per box (adds 0.5ms/img)
     merge = False  # use merge-NMS
@@ -978,7 +980,24 @@ def non_max_suppression(
 
         # Filter by class
         if classes is not None:
-            x = x[(x[:, 5:6] == torch.tensor(classes, device=x.device)).any(1)]
+            x = x[
+                (
+                    x[:, 5:6]
+                    == torch.tensor(
+                        [DetectorClasses[cls].value for cls in classes], device=x.device
+                    )
+                ).any(1)
+            ]
+
+            trimmed_set = []
+            for class_name, class_conf in classes.items():
+                trimmed_set.append(
+                    x[
+                        (x[:, 5] == DetectorClasses[class_name].value)
+                        & (x[:, 4] > class_conf)
+                    ]
+                )
+            x = torch.cat(trimmed_set)
 
         # Apply finite constraint
         # if not torch.isfinite(x).all():
