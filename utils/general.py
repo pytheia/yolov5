@@ -31,6 +31,8 @@ import torch
 import torchvision
 import yaml
 
+import typing as T
+
 from .downloads import gsutil_getsize
 from .metrics import box_iou, fitness
 
@@ -910,7 +912,7 @@ def non_max_suppression(
     prediction,
     conf_thres=0.25,
     iou_thres=0.45,
-    classes=None,
+    classes: T.Optional[T.Dict[int, float]] = None,
     agnostic=False,
     multi_label=False,
     labels=(),
@@ -981,22 +983,14 @@ def non_max_suppression(
         # Filter by class
         if classes is not None:
             x = x[
-                (
-                    x[:, 5:6]
-                    == torch.tensor(
-                        [DetectorClasses[cls].value for cls in classes], device=x.device
-                    )
-                ).any(1)
+                (x[:, 5:6] == torch.tensor(list(classes.keys()), device=x.device)).any(
+                    dim=1
+                )
             ]
 
             trimmed_set = []
             for class_name, class_conf in classes.items():
-                trimmed_set.append(
-                    x[
-                        (x[:, 5] == DetectorClasses[class_name].value)
-                        & (x[:, 4] > class_conf)
-                    ]
-                )
+                trimmed_set.append(x[(x[:, 5] == class_name) & (x[:, 4] > class_conf)])
             x = torch.cat(trimmed_set)
 
         # Apply finite constraint
